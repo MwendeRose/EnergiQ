@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 class CriticalAlertCard extends StatelessWidget {
   final VoidCallback? onViewDetails;
-  const CriticalAlertCard({super.key, this.onViewDetails});
+  const CriticalAlertCard({super.key, this.onViewDetails, required void Function() onViewAlerts, VoidCallback? onTap});
 
   @override
   Widget build(BuildContext context) {

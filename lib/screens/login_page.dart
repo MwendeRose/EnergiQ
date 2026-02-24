@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'dashboard_page.dart';   // ← import dashboard
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,12 +34,12 @@ class _LoginPageState extends State<LoginPage> {
 
   final _auth = AuthService.instance;
 
-  // ── Bright, clean palette ─────────────────────────────────
-  static const kPageBg    = Color(0xFFF0F4FF);   // light blue-grey page
-  static const kPanelLeft = Color(0xFF1B4FD8);   // vibrant royal blue (left panel)
+  // ── Palette ───────────────────────────────────────────────
+  static const kPageBg    = Color(0xFFF0F4FF);
+  static const kPanelLeft = Color(0xFF1B4FD8);
   static const kPanelL2   = Color(0xFF1A3CC8);
   static const kPanelL3   = Color(0xFF0E2FA8);
-  static const kAmber     = Color(0xFFFFAA00);   // Snapp Africa orange
+  static const kAmber     = Color(0xFFFFAA00);
   static const kWhite     = Color(0xFFFFFFFF);
   static const kOffWhite  = Color(0xFFF8FAFF);
   static const kBorder    = Color(0xFFDDE3F0);
@@ -58,8 +59,24 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // ── Navigation helper — replaces the entire stack ─────────
+  void _goToDashboard() {
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 500),
+        pageBuilder: (_, __, ___) => const DashboardPage(),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+      (route) => false,   // remove all previous routes (welcome + login)
+    );
+  }
+
+  // ── Auth actions ──────────────────────────────────────────
+
   Future<void> _doLogin() async {
-    final email = _loginEmail.text.trim();
+    final email    = _loginEmail.text.trim();
     final password = _loginPassword.text;
     if (email.isEmpty || password.isEmpty) {
       setState(() => _error = 'Please enter your email and password.');
@@ -67,13 +84,17 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() => _error = null);
     final err = await _auth.login(email: email, password: password);
-    if (err != null && mounted) setState(() => _error = err);
+    if (err != null && mounted) {
+      setState(() => _error = err);
+    } else {
+      _goToDashboard();          // ← redirect on success
+    }
   }
 
   Future<void> _doSignup() async {
-    final first = _signupFirstName.text.trim();
-    final last  = _signupLastName.text.trim();
-    final email = _signupEmail.text.trim();
+    final first    = _signupFirstName.text.trim();
+    final last     = _signupLastName.text.trim();
+    final email    = _signupEmail.text.trim();
     final password = _signupPassword.text;
     if (first.isEmpty || email.isEmpty || password.isEmpty) {
       setState(() => _error = 'First name, email and password are required.');
@@ -94,13 +115,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _error = null);
     final err = await _auth.signUp(
         name: '$first $last', email: email, password: password, phone: '');
-    if (err != null && mounted) setState(() => _error = err);
+    if (err != null && mounted) {
+      setState(() => _error = err);
+    } else {
+      _goToDashboard();          // ← redirect on success
+    }
   }
 
   Future<void> _doGoogleSignIn() async {
     setState(() { _error = null; _googleLoading = true; });
     final err = await _auth.signInWithGoogle();
-    if (mounted) setState(() { _googleLoading = false; _error = err; });
+    if (mounted) {
+      setState(() { _googleLoading = false; _error = err; });
+      if (err == null) _goToDashboard();  // ← redirect on success
+    }
   }
 
   Future<void> _doForgotPassword() async {
@@ -155,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 16),
                   ListenableBuilder(
                     listenable: _auth,
-                    builder: (_, _) => _DarkBtn(label: 'Send Reset Link',
+                    builder: (_, __) => _DarkBtn(label: 'Send Reset Link',
                         loading: _auth.loading, onPressed: send),
                   ),
                   const SizedBox(height: 8),
@@ -203,7 +231,6 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: kPageBg,
       body: Container(
-        // Bright light page background
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFFEBF0FF), Color(0xFFF5F7FF), Color(0xFFE8EEFF)],
@@ -225,8 +252,6 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-  // ── The split card ────────────────────────────────────────
 
   Widget _buildCard() {
     return Container(
@@ -261,17 +286,17 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ── LEFT: Bright blue hero panel ─────────────────────────
+  // ── LEFT: Blue hero panel ─────────────────────────────────
 
   Widget _buildHeroPanel() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0xFF1B4FD8),  // bright royal blue
+            Color(0xFF1B4FD8),
             Color(0xFF1A44C2),
             Color(0xFF1238A8),
-            Color(0xFF0E2D90),  // deeper blue at bottom
+            Color(0xFF0E2D90),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -279,36 +304,19 @@ class _LoginPageState extends State<LoginPage> {
       ),
       child: Stack(
         children: [
-          // Subtle light blobs for depth — NOT dark circles
           Positioned(top: -50, right: -50,
-            child: Container(
-              width: 200, height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kWhite.withOpacity(0.07),
-              ),
-            ),
-          ),
+            child: Container(width: 200, height: 200,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: kWhite.withOpacity(0.07)))),
           Positioned(bottom: -60, left: -40,
-            child: Container(
-              width: 220, height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kWhite.withOpacity(0.05),
-              ),
-            ),
-          ),
+            child: Container(width: 220, height: 220,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: kWhite.withOpacity(0.05)))),
           Positioned(top: 120, right: 10,
-            child: Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kAmber.withOpacity(0.12),
-              ),
-            ),
-          ),
+            child: Container(width: 80, height: 80,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: kAmber.withOpacity(0.12)))),
 
-          // Content
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 30, 24, 32),
             child: Column(
@@ -316,157 +324,88 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
 
-                // ── LOGO on WHITE background so it's fully visible ──
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 148, height: 60,
+                      width: 160,
+                      height: 72,
                       decoration: BoxDecoration(
-                        // WHITE background — logo (black bg, orange chevron) is now clearly visible
                         color: kWhite,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                         boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
+                          BoxShadow(color: Colors.black.withOpacity(0.18),
+                              blurRadius: 16, offset: const Offset(0, 5)),
+                          BoxShadow(color: kAmber.withOpacity(0.15),
+                              blurRadius: 20, spreadRadius: 2),
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.asset(
-                          'assets/Logo.pdf',
-                          fit: BoxFit.contain,
-                          // Fallback: drawn Snapp Africa logo (no empty circle)
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color.fromARGB(255, 6, 6, 6),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  '>',
-                                  style: TextStyle(
-                                    color: kAmber,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w900,
-                                    fontStyle: FontStyle.italic,
-                                    height: 1,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Text('SNAPP',
-                                        style: TextStyle(
-                                          color: kWhite,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 2,
-                                          height: 1,
-                                        )),
-                                    Text('AFRICA',
-                                        style: TextStyle(
-                                          color: kAmber,
-                                          fontSize: 8,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 3,
-                                          height: 1.4,
-                                        )),
-                                  ],
-                                ),
-                              ],
-                            ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Image.asset(
+                            'assets/Logo.png',
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            isAntiAlias: true,
+                            errorBuilder: (_, __, ___) => _LogoFallback(),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Smart Meter ·  Borehole Monitoring',
-                      style: TextStyle(
-                        color: kWhite.withOpacity(0.55),
-                        fontSize: 9,
-                        letterSpacing: 0.3,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    const SizedBox(height: 10),
+                    const Text('Smart Meter App',
+                        style: TextStyle(color: kWhite, fontSize: 13,
+                            fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      Text('powered by ', style: TextStyle(color: kWhite.withOpacity(0.5), fontSize: 9)),
+                      Text('Snapp Africa', style: TextStyle(color: kAmber.withOpacity(0.85),
+                          fontSize: 9, fontWeight: FontWeight.w700)),
+                    ]),
                   ],
                 ),
 
-                // ── Welcome copy + Snapp Africa footer ──
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _mode == 0 ? 'Welcome\nback.' : 'Create your\nAccount',
-                      style: const TextStyle(
-                        color: kWhite,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                        letterSpacing: -0.3,
-                      ),
+                      style: const TextStyle(color: kWhite, fontSize: 30,
+                          fontWeight: FontWeight.w900, height: 1.15, letterSpacing: -0.3),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       _mode == 0
                           ? 'Monitor boreholes in\nreal-time across Africa.'
                           : 'Monitor boreholes and\nmanage water smartly.',
-                      style: TextStyle(
-                        color: kWhite.withOpacity(0.7),
-                        fontSize: 13,
-                        height: 1.6,
-                      ),
+                      style: TextStyle(color: kWhite.withOpacity(0.7), fontSize: 13, height: 1.6),
                     ),
                     const SizedBox(height: 30),
 
-                    // ── Powered by Snapp Africa strip ──
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                       decoration: BoxDecoration(
-                        color: kWhite.withOpacity(0.12),
+                        color: kWhite.withOpacity(0.10),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: kAmber.withOpacity(0.35), width: 1),
+                        border: Border.all(color: kAmber.withOpacity(0.35), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Amber chevron icon
-                          const Text('>',
-                              style: TextStyle(
-                                color: kAmber,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                fontStyle: FontStyle.italic,
-                                height: 1,
-                              )),
+                          const Text('>', style: TextStyle(color: kAmber, fontSize: 16,
+                              fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, height: 1)),
                           const SizedBox(width: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Powered by Snapp Africa',
-                                  style: TextStyle(
-                                    color: kWhite.withOpacity(0.92),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.2,
-                                  )),
+                                  style: TextStyle(color: kWhite.withOpacity(0.92),
+                                      fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                               Text('The last mile provider for mobile & web',
-                                  style: TextStyle(
-                                    color: kWhite.withOpacity(0.5),
-                                    fontSize: 7.5,
-                                    fontStyle: FontStyle.italic,
-                                    letterSpacing: 0.1,
-                                  )),
+                                  style: TextStyle(color: kWhite.withOpacity(0.5),
+                                      fontSize: 7.5, fontStyle: FontStyle.italic, letterSpacing: 0.1)),
                             ],
                           ),
                         ],
@@ -493,9 +432,8 @@ class _LoginPageState extends State<LoginPage> {
         transitionBuilder: (child, anim) => FadeTransition(
           opacity: anim,
           child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04), end: Offset.zero,
-            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+            position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
+                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
             child: child,
           ),
         ),
@@ -505,8 +443,6 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
-  // ── Sign-In Form ──────────────────────────────────────────
 
   Widget _signInForm({Key? key}) {
     return Column(
@@ -534,9 +470,7 @@ class _LoginPageState extends State<LoginPage> {
           controller: _loginPassword, hint: 'Password',
           obscure: _loginObscure,
           suffix: IconButton(
-            icon: Icon(_loginObscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
+            icon: Icon(_loginObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: kSubtext, size: 18),
             onPressed: () => setState(() => _loginObscure = !_loginObscure),
           ),
@@ -547,8 +481,7 @@ class _LoginPageState extends State<LoginPage> {
           child: GestureDetector(
             onTap: _doForgotPassword,
             child: const Text('Forgot password?',
-                style: TextStyle(color: kSubtext, fontSize: 12,
-                    fontWeight: FontWeight.w500)),
+                style: TextStyle(color: kSubtext, fontSize: 12, fontWeight: FontWeight.w500)),
           ),
         ),
         const SizedBox(height: 20),
@@ -580,8 +513,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(color: kSubtext, fontSize: 13),
                 children: [
                   TextSpan(text: 'Sign up',
-                      style: TextStyle(color: kPanelLeft,
-                          fontWeight: FontWeight.w800)),
+                      style: TextStyle(color: kPanelLeft, fontWeight: FontWeight.w800)),
                 ],
               ),
             ),
@@ -590,8 +522,6 @@ class _LoginPageState extends State<LoginPage> {
       ],
     );
   }
-
-  // ── Sign-Up Form ──────────────────────────────────────────
 
   Widget _signUpForm({Key? key}) {
     return Column(
@@ -603,7 +533,7 @@ class _LoginPageState extends State<LoginPage> {
             style: TextStyle(color: kText, fontSize: 26,
                 fontWeight: FontWeight.w900, letterSpacing: -0.3)),
         const SizedBox(height: 4),
-        const Text('Create your Maji Smart account',
+        const Text('Create your Smart Meter App account',
             style: TextStyle(color: kSubtext, fontSize: 13)),
         const SizedBox(height: 24),
 
@@ -613,11 +543,9 @@ class _LoginPageState extends State<LoginPage> {
         ],
 
         Row(children: [
-          Expanded(child: _OutlineField(
-              controller: _signupFirstName, hint: 'First name')),
+          Expanded(child: _OutlineField(controller: _signupFirstName, hint: 'First name')),
           const SizedBox(width: 10),
-          Expanded(child: _OutlineField(
-              controller: _signupLastName, hint: 'Last name')),
+          Expanded(child: _OutlineField(controller: _signupLastName, hint: 'Last name')),
         ]),
         const SizedBox(height: 10),
         _OutlineField(controller: _signupEmail, hint: 'Email address',
@@ -627,9 +555,7 @@ class _LoginPageState extends State<LoginPage> {
           controller: _signupPassword, hint: 'Password',
           obscure: _signupObscure,
           suffix: IconButton(
-            icon: Icon(_signupObscure
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
+            icon: Icon(_signupObscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: kSubtext, size: 18),
             onPressed: () => setState(() => _signupObscure = !_signupObscure),
           ),
@@ -646,8 +572,7 @@ class _LoginPageState extends State<LoginPage> {
                   onChanged: (v) => setState(() => _acceptTerms = v ?? false),
                   activeColor: kPanelLeft,
                   side: const BorderSide(color: kBorder, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                 ),
               ),
               const SizedBox(width: 8),
@@ -685,8 +610,7 @@ class _LoginPageState extends State<LoginPage> {
                 style: TextStyle(color: kSubtext, fontSize: 13),
                 children: [
                   TextSpan(text: 'Sign in',
-                      style: TextStyle(color: kPanelLeft,
-                          fontWeight: FontWeight.w800)),
+                      style: TextStyle(color: kPanelLeft, fontWeight: FontWeight.w800)),
                 ],
               ),
             ),
@@ -714,9 +638,41 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// LOGO FALLBACK
+// ════════════════════════════════════════════════════════════
+class _LogoFallback extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0D0D0D),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: const [
+          Text('>', style: TextStyle(color: Color(0xFFFFAA00), fontSize: 28,
+              fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, height: 1)),
+          SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('SNAPP', style: TextStyle(color: Colors.white, fontSize: 13,
+                  fontWeight: FontWeight.w900, letterSpacing: 2, height: 1)),
+              Text('AFRICA', style: TextStyle(color: Color(0xFFFFAA00), fontSize: 7,
+                  fontWeight: FontWeight.w700, letterSpacing: 3, height: 1.4)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 // SHARED HELPER WIDGETS
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
 
 class _OutlineField extends StatelessWidget {
   final TextEditingController controller;
@@ -739,27 +695,22 @@ class _OutlineField extends StatelessWidget {
       style: const TextStyle(color: _LoginPageState.kText, fontSize: 13.5),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-            color: _LoginPageState.kSubtext, fontSize: 13.5),
+        hintStyle: const TextStyle(color: _LoginPageState.kSubtext, fontSize: 13.5),
         suffixIcon: suffix,
         filled: true,
         fillColor: _LoginPageState.kFieldBg,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-              color: _LoginPageState.kBorder, width: 1),
+          borderSide: const BorderSide(color: _LoginPageState.kBorder, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-              color: _LoginPageState.kBorder, width: 1),
+          borderSide: const BorderSide(color: _LoginPageState.kBorder, width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(
-              color: _LoginPageState.kPanelLeft, width: 1.8),
+          borderSide: const BorderSide(color: _LoginPageState.kPanelLeft, width: 1.8),
         ),
       ),
     );
@@ -787,11 +738,8 @@ class _DarkBtn extends StatelessWidget {
         child: loading
             ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-            : Text(label,
-                style: const TextStyle(
-                  color: _LoginPageState.kWhite,
-                  fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: 0.2,
-                )),
+            : Text(label, style: const TextStyle(color: _LoginPageState.kWhite,
+                fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: 0.2)),
       ),
     );
   }
@@ -815,8 +763,7 @@ class _SocialBtn extends StatelessWidget {
       child: dark
           ? ElevatedButton.icon(
               onPressed: onPressed, icon: icon,
-              label: Text(label, style: const TextStyle(
-                  color: _LoginPageState.kWhite,
+              label: Text(label, style: const TextStyle(color: _LoginPageState.kWhite,
                   fontWeight: FontWeight.w600, fontSize: 13)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _LoginPageState.kBlack,
@@ -828,11 +775,9 @@ class _SocialBtn extends StatelessWidget {
               onPressed: onPressed,
               icon: loading
                   ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _LoginPageState.kText))
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _LoginPageState.kText))
                   : icon,
-              label: Text(label, style: const TextStyle(
-                  color: _LoginPageState.kText,
+              label: Text(label, style: const TextStyle(color: _LoginPageState.kText,
                   fontWeight: FontWeight.w600, fontSize: 13)),
               style: OutlinedButton.styleFrom(
                 backgroundColor: _LoginPageState.kWhite,
@@ -851,8 +796,7 @@ class _OrDivider extends StatelessWidget {
       const Expanded(child: Divider(color: _LoginPageState.kBorder, thickness: 1)),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Text('or', style: const TextStyle(
-            color: _LoginPageState.kSubtext, fontSize: 12)),
+        child: Text('or', style: const TextStyle(color: _LoginPageState.kSubtext, fontSize: 12)),
       ),
       const Expanded(child: Divider(color: _LoginPageState.kBorder, thickness: 1)),
     ]);
@@ -876,12 +820,10 @@ class _ErrBox extends StatelessWidget {
       child: Row(children: [
         const Icon(Icons.error_outline, color: _LoginPageState.kError, size: 15),
         const SizedBox(width: 8),
-        Expanded(child: Text(message, style: const TextStyle(
-            color: _LoginPageState.kError, fontSize: 12))),
+        Expanded(child: Text(message, style: const TextStyle(color: _LoginPageState.kError, fontSize: 12))),
         if (onClose != null)
           GestureDetector(onTap: onClose,
-              child: const Icon(Icons.close,
-                  color: _LoginPageState.kError, size: 15)),
+              child: const Icon(Icons.close, color: _LoginPageState.kError, size: 15)),
       ]),
     );
   }

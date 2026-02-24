@@ -38,11 +38,13 @@ class MajiSmartApp extends StatelessWidget {
   }
 }
 
-/// ─── Routing ─────────────────────────────────────────────────
+/// ─── Routing ──────────────────────────────────────────────────
 ///
 ///  First install  →  WelcomePage  →  LoginPage  →  HomeScreen
 ///  Return visit   →  LoginPage    →  HomeScreen
 ///  Already authed →  HomeScreen
+///
+///  User can always replay welcome via [replayWelcome] helper.
 ///
 class _AuthGate extends StatefulWidget {
   const _AuthGate();
@@ -72,11 +74,10 @@ class _AuthGateState extends State<_AuthGate> {
   Widget build(BuildContext context) {
     if (_loading) return const _Splash();
 
-    // ① First ever launch — show welcome BEFORE anything else,
-    //   even if Firebase already has a saved session.
+    // ① Always show welcome on first ever launch
     if (!_seenWelcome) return const WelcomePage();
 
-    // ② Welcome already seen — now check auth state
+    // ② Welcome seen — route by auth state
     return ListenableBuilder(
       listenable: AuthService.instance,
       builder: (_, __) {
@@ -87,7 +88,24 @@ class _AuthGateState extends State<_AuthGate> {
   }
 }
 
-/// Branded splash while SharedPreferences loads (~100–200 ms)
+/// Call this from anywhere (Settings, Home page button, etc.)
+/// to clear the flag and push the user back to WelcomePage.
+Future<void> replayWelcome(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('seen_welcome', false);
+  if (!context.mounted) return;
+  Navigator.of(context).pushAndRemoveUntil(
+    PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 500),
+      pageBuilder: (_, __, ___) => const WelcomePage(),
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+    ),
+    (_) => false, // remove all previous routes
+  );
+}
+
+/// Branded splash while SharedPreferences loads
 class _Splash extends StatelessWidget {
   const _Splash();
 
@@ -99,7 +117,6 @@ class _Splash extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo container
             Container(
               width: 140, height: 68,
               decoration: BoxDecoration(
@@ -114,7 +131,7 @@ class _Splash extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Image.asset(
-                  'assets/Logo.pdf',
+                  'assets/Logo.png',
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Container(
                     color: const Color(0xFF0D0D0D),
@@ -122,32 +139,14 @@ class _Splash extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
-                        Text('>',
-                            style: TextStyle(
-                              color: Color(0xFFFFAA00),
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              fontStyle: FontStyle.italic,
-                            )),
+                        Text('>', style: TextStyle(color: Color(0xFFFFAA00), fontSize: 30, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
                         SizedBox(width: 8),
                         Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('SNAPP',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 2.5,
-                                )),
-                            Text('AFRICA',
-                                style: TextStyle(
-                                  color: Color(0xFFFFAA00),
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 3,
-                                )),
+                            Text('SNAPP', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 2.5)),
+                            Text('AFRICA', style: TextStyle(color: Color(0xFFFFAA00), fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 3)),
                           ],
                         ),
                       ],
@@ -159,10 +158,7 @@ class _Splash extends StatelessWidget {
             const SizedBox(height: 32),
             const SizedBox(
               width: 20, height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: Color(0xFFFFAA00),
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFFAA00)),
             ),
           ],
         ),

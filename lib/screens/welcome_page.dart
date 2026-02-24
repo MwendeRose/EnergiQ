@@ -1,178 +1,162 @@
 // lib/screens/welcome_page.dart
-// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures, unnecessary_underscores
+// ignore_for_file: deprecated_member_use, unused_element, unnecessary_underscores
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 
-// ─── Design Tokens (matches LoginPage palette) ───────────────
-const _kBlue      = Color(0xFF1B4FD8);
-const _kAmber     = Color(0xFFFFAA00);
+// ─── Bright, clean colour palette ────────────────────────────
 const _kWhite     = Color(0xFFFFFFFF);
-const _kOffWhite  = Color(0xFFF0F4FF);
-const _kText      = Color(0xFF111827);
-const _kSubtext   = Color(0xFF6B7280);
-const _kBorder    = Color(0xFFDDE3F0);
+const _kBg        = Color(0xFFF6F9FF);      // very light blue-white page bg
+const _kBgAlt     = Color(0xFFEDF2FF);      // slightly deeper for alternating sections
+const _kBlue      = Color(0xFF1A4FD6);      // primary blue
+const _kBlueSoft  = Color(0xFFE8EFFE);      // blue tint bg
+const _kAmber     = Color(0xFFFFAA00);      // amber accent
+const _kAmberBg   = Color(0xFFFFF4D6);      // amber tint bg
+const _kText      = Color(0xFF0D1726);      // near-black body
+const _kTextMid   = Color(0xFF2C3A55);      // secondary text
+const _kSubtext   = Color(0xFF5A6A85);      // muted body text
+const _kBorder    = Color(0xFFD0DBEE);      // subtle borders
+const _kGreen     = Color(0xFF14A849);      // success / live green
 
+// Per-benefit accent colours (dark enough for white text)
+const _benefitAccents = [
+  Color(0xFF1550CC),
+  Color(0xFF996600),
+  Color(0xFFCC2222),
+  Color(0xFF0E7A3E),
+  Color(0xFF6626CC),
+];
+
+// Per-benefit soft background tints
+const _benefitBgs = [
+  Color(0xFFEAF1FF),
+  Color(0xFFFFF8E1),
+  Color(0xFFFFECEC),
+  Color(0xFFE8F9F1),
+  Color(0xFFF3EDFF),
+];
+
+// ─── Data ────────────────────────────────────────────────────
+class _Benefit {
+  final String subline, headline, story, proof;
+  const _Benefit({required this.subline, required this.headline,
+      required this.story, required this.proof});
+}
+
+const _benefits = [
+  _Benefit(
+    subline: '24/7 borehole visibility',
+    headline: 'See Everything, From Anywhere',
+    story: 'Open the app and instantly see how much water you have, whether the pump is running, and how much has been used today — no matter where you are.',
+    proof: 'Live updates every 30 seconds',
+  ),
+  _Benefit(
+    subline: 'Remote pump management',
+    headline: 'Control Your Pump With One Tap',
+    story: 'Switch the pump on or off from anywhere. Set schedules so it runs automatically — saving electricity and ensuring water is always ready when you need it.',
+    proof: 'Pump responds in under 2 seconds',
+  ),
+  _Benefit(
+    subline: 'Instant problem detection',
+    headline: 'Get Warned Before Things Go Wrong',
+    story: 'Burst pipe. Tank overflow. Pump failure. Smart Meter App detects problems the moment they happen and alerts you immediately — before damage is done.',
+    proof: 'Alerts delivered in under 1 second',
+  ),
+  _Benefit(
+    subline: 'Usage analytics & reporting',
+    headline: 'Stop Wasting Water and Money',
+    story: 'Simple daily and monthly charts show exactly where every litre goes. Spot leaks early and understand your patterns so billing is never a surprise.',
+    proof: 'Full usage history included',
+  ),
+  _Benefit(
+    subline: 'Multi-user access control',
+    headline: 'Your Whole Team, On the Same Page',
+    story: 'Add your caretaker, manager, and accountant — each with the right access level. Everyone sees what they need, and you stay in control of everything.',
+    proof: 'Unlimited members, 3 permission levels',
+  ),
+];
+
+const _howSteps = [
+  ['1', 'Install the smart meter', 'A small device attaches to your borehole in about an hour. Works with most existing setups across Kenya.'],
+  ['2', 'Download Smart Meter App', 'Available on Android and iOS. Log in and your borehole appears live on the dashboard instantly.'],
+  ['3', 'Monitor, control and relax', 'Set your alerts, configure pump schedules, and let Smart Meter App handle the rest — 24/7.'],
+];
+
+const _testimonials = [
+  ['"I used to visit my properties twice a week to check water. Now I do it from my phone at breakfast."', 'James M.', 'Property Manager, Nairobi'],
+  ['"We caught a leak that would have wasted thousands of litres. The alert came at night and we fixed it by morning."', 'Grace W.', 'School Administrator, Kiambu'],
+  ['"Tenants stopped complaining because we know about problems before they do."', 'David K.', 'Estate Owner, Mombasa'],
+];
+
+// ═══════════════════════════════════════════════════════════════
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
   @override
   State<WelcomePage> createState() => _WelcomePageState();
 }
 
-class _WelcomePageState extends State<WelcomePage>
-    with TickerProviderStateMixin {
+class _WelcomePageState extends State<WelcomePage> with TickerProviderStateMixin {
 
-  final PageController _pageCtrl = PageController();
-  int _currentPage = 0;
-
-  late final List<AnimationController> _fadeControllers;
-  late final List<Animation<double>>   _fadeAnims;
-  late final List<AnimationController> _slideControllers;
-  late final List<Animation<Offset>>   _slideAnims;
+  int    _activeBenefit = 0;
+  Timer? _benefitTimer;
 
   late final AnimationController _entryCtrl;
   late final Animation<double>   _entryFade;
   late final Animation<Offset>   _entrySlide;
-
-  final List<_OnboardStep> _steps = const [
-    _OnboardStep(
-      icon:        Icons.water_drop_rounded,
-      iconColor:   Color(0xFF0EA5E9),
-      iconBg:      Color(0xFFE0F2FE),
-      title:       'Real-Time Borehole Monitoring',
-      description: 'Track water levels, pump status, and flow rates across all your boreholes — updated live, 24/7.',
-      stat:        '99.9%',
-      statLabel:   'Uptime',
-      stat2:       'Live',
-      statLabel2:  'Updates',
-    ),
-    _OnboardStep(
-      icon:        Icons.bolt_rounded,
-      iconColor:   Color(0xFFFFAA00),
-      iconBg:      Color(0xFFFFF7E0),
-      title:       'Smart Pump Control',
-      description: 'Start, stop, or schedule your pumps remotely. Full control at your fingertips, wherever you are.',
-      stat:        '1-tap',
-      statLabel:   'Control',
-      stat2:       'Remote',
-      statLabel2:  'Access',
-    ),
-    _OnboardStep(
-      icon:        Icons.analytics_rounded,
-      iconColor:   Color(0xFF8B5CF6),
-      iconBg:      Color(0xFFF3F0FF),
-      title:       'Analytics & Insights',
-      description: 'Visualise consumption trends, detect anomalies, and generate reports to make smarter water decisions.',
-      stat:        '30+',
-      statLabel:   'Reports',
-      stat2:       'AI',
-      statLabel2:  'Insights',
-    ),
-    _OnboardStep(
-      icon:        Icons.notifications_active_rounded,
-      iconColor:   Color(0xFFEF4444),
-      iconBg:      Color(0xFFFFEEEE),
-      title:       'Instant Critical Alerts',
-      description: 'Get notified immediately when pumps fail, tanks overflow, or unusual activity is detected on your network.',
-      stat:        '<1s',
-      statLabel:   'Alert Time',
-      stat2:       'SMS + App',
-      statLabel2:  'Channels',
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
     _entryCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _entryFade = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
-    _entrySlide = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+    _entrySlide = Tween<Offset>(begin: const Offset(0, 0.025), end: Offset.zero)
         .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut));
-
-    _fadeControllers = List.generate(_steps.length,
-        (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 420)));
-    _fadeAnims = _fadeControllers
-        .map((c) => CurvedAnimation(parent: c, curve: Curves.easeOut))
-        .toList();
-
-    _slideControllers = List.generate(_steps.length,
-        (_) => AnimationController(vsync: this, duration: const Duration(milliseconds: 420)));
-    _slideAnims = _slideControllers.map((c) =>
-      Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-          .animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
-    ).toList();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _entryCtrl.forward();
-      _fadeControllers[0].forward();
-      _slideControllers[0].forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _entryCtrl.forward());
+    _benefitTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) setState(() => _activeBenefit = (_activeBenefit + 1) % _benefits.length);
     });
   }
 
   @override
   void dispose() {
-    _pageCtrl.dispose();
     _entryCtrl.dispose();
-    for (final c in _fadeControllers) c.dispose();
-    for (final c in _slideControllers) c.dispose();
+    _benefitTimer?.cancel();
     super.dispose();
   }
 
-  void _onPageChanged(int page) {
-    setState(() => _currentPage = page);
-    _fadeControllers[page].reset();
-    _slideControllers[page].reset();
-    _fadeControllers[page].forward();
-    _slideControllers[page].forward();
-  }
-
-  void _next() {
-    if (_currentPage < _steps.length - 1) {
-      _pageCtrl.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-    } else {
-      _goToLogin();
-    }
-  }
-
-  void _skip() => _goToLogin();
-
-  // ✅ Saves seen_welcome flag so main.dart routes to LoginPage on next launch
   Future<void> _goToLogin() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seen_welcome', true);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, __, ___) => const LoginPage(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
+    Navigator.of(context).pushReplacement(PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 450),
+      pageBuilder: (_, __, ___) => const LoginPage(),
+      transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
-    final size   = MediaQuery.of(context).size;
-    final isWide = size.width > 680;
-
     return Scaffold(
-      backgroundColor: _kOffWhite,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFEBF0FF), Color(0xFFF5F7FF), Color(0xFFE8EEFF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _entryFade,
-            child: SlideTransition(
-              position: _entrySlide,
-              child: isWide ? _buildWideLayout() : _buildNarrowLayout(),
+      backgroundColor: _kBg,
+      body: FadeTransition(
+        opacity: _entryFade,
+        child: SlideTransition(
+          position: _entrySlide,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(),
+                _buildMeter(),
+                _buildBenefits(),
+                _buildHowItWorks(),
+                _buildTestimonials(),
+                _buildCTA(),
+                _buildFooter(),
+              ],
             ),
           ),
         ),
@@ -180,189 +164,320 @@ class _WelcomePageState extends State<WelcomePage>
     );
   }
 
-  Widget _buildWideLayout() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 880),
+  // ─── HEADER ──────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFEBF1FF), Color(0xFFF8FAFF)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 44),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _buildTopBar(),
+
+              // Logo
+              SizedBox(
+                width: 200,
+                height: 72,
+                child: Image.asset(
+                  'assets/Logo.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  filterQuality: FilterQuality.high,
+                  isAntiAlias: true,
+                  errorBuilder: (_, __, ___) => const _TextLogoLight(),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              const Text(
+                'powered by Snapp Africa',
+                style: TextStyle(
+                  color: _kSubtext,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Blue badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _kBlueSoft,
+                  border: Border.all(color: Color(0xFF99B8FF)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Smart Borehole Monitoring',
+                  style: TextStyle(
+                    color: _kBlue,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
-              Expanded(
+
+              // Hero headline
+              const Text(
+                'Never Worry About\nYour Water Supply Again',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kText,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  height: 1.18,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              const Text(
+                'Monitor your borehole, control your pump, and get\nwarned about problems — all from your phone.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _kSubtext,
+                  fontSize: 14,
+                  height: 1.65,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Stats card
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: _kWhite,
+                  border: Border.all(color: _kBorder),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kBlue.withOpacity(0.07),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Expanded(flex: 5, child: _buildHeroPanel()),
-                    const SizedBox(width: 20),
-                    Expanded(flex: 7, child: _buildRightPanel()),
+                    _Stat('30s',  'Updates'),
+                    _StatDiv(),
+                    _Stat('<2s',  'Pump resp.'),
+                    _StatDiv(),
+                    _Stat('<1s',  'Alerts'),
+                    _StatDiv(),
+                    _Stat('24/7', 'Monitoring'),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+              const SizedBox(height: 28),
 
-  Widget _buildNarrowLayout() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        children: [
-          _buildTopBar(),
-          const SizedBox(height: 20),
-          Expanded(child: _buildMobileSlides()),
-          _buildBottomCTA(),
-        ],
-      ),
-    );
-  }
+              // Primary CTA
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _goToLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kBlue,
+                    foregroundColor: _kWhite,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Get Started — It\'s Free',
+                    style: TextStyle(color: _kWhite, fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
 
-  Widget _buildTopBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Logo pill — drawn, no image asset needed
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: _kBlue,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: _kBlue.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('>', style: TextStyle(color: _kAmber, fontSize: 18, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
-              const SizedBox(width: 7),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('SNAPP', style: TextStyle(color: _kWhite, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2.5, height: 1)),
-                  Text('AFRICA', style: TextStyle(color: _kAmber, fontSize: 7, fontWeight: FontWeight.w700, letterSpacing: 3, height: 1.4)),
+              // Secondary CTA
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _goToLogin,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _kBorder, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    backgroundColor: _kWhite,
+                  ),
+                  child: const Text(
+                    'Sign In to Your Account',
+                    style: TextStyle(color: _kTextMid, fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Trust badges
+              Wrap(
+                spacing: 14, runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  _Trust('No contracts'),
+                  _Trust('Any phone'),
+                  _Trust('Easy install'),
+                  _Trust('Free to start'),
                 ],
               ),
             ],
           ),
         ),
-        TextButton(
-          onPressed: _skip,
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: _kBorder)),
-            backgroundColor: _kWhite,
-          ),
-          child: const Text('Skip  →', style: TextStyle(color: _kSubtext, fontSize: 12, fontWeight: FontWeight.w600)),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildHeroPanel() {
+  // ─── METER SHOWCASE ──────────────────────────────────────────
+  Widget _buildMeter() {
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1B4FD8), Color(0xFF0E2D90)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [BoxShadow(color: _kBlue.withOpacity(0.35), blurRadius: 40, offset: const Offset(0, 12))],
-      ),
-      child: Stack(
+      color: _kWhite,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
         children: [
-          Positioned(top: -40, right: -40,
-            child: Container(width: 180, height: 180,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: _kWhite.withOpacity(0.06)))),
-          Positioned(bottom: -60, left: -30,
-            child: Container(width: 200, height: 200,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: _kWhite.withOpacity(0.04)))),
-          Positioned(top: 100, right: 10,
-            child: Container(width: 60, height: 60,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: _kAmber.withOpacity(0.14)))),
-          Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
+          _SectionPill('THE HARDWARE'),
+          const SizedBox(height: 16),
+          const Text(
+            'Meet Your Smart Meter',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kText, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.3),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'A compact device that attaches to your borehole and\nstreams live data straight to your phone.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kSubtext, fontSize: 13.5, height: 1.6),
+          ),
+          const SizedBox(height: 28),
+
+          // Meter card layout — image left, info right
+          Container(
+            decoration: BoxDecoration(
+              color: _kBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _kBorder, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: _kBlue.withOpacity(0.07),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(18),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text('${_currentPage + 1} / ${_steps.length}',
-                        style: TextStyle(color: _kWhite.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 1)),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: List.generate(_steps.length, (i) {
-                        final active = i == _currentPage;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.only(right: 6),
-                          width: active ? 24 : 6, height: 6,
+
+                // ── Small meter image — fully visible (BoxFit.contain) ──
+                Container(
+                  width: 140,
+                  height: 185,
+                  decoration: BoxDecoration(
+                    color: _kWhite,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _kBorder, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      // Fully contained — no cropping
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Image.asset(
+                          'assets/meter.png',
+                          width: 140,
+                          height: 185,
+                          fit: BoxFit.contain,        // ← shows entire image
+                          alignment: Alignment.center,
+                          filterQuality: FilterQuality.high,
+                          errorBuilder: (_, __, ___) => const _MeterPlaceholder(),
+                        ),
+                      ),
+                      // LIVE badge overlay
+                      Positioned(
+                        top: 8, right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                           decoration: BoxDecoration(
-                            color: active ? _kAmber : _kWhite.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(3),
+                            color: _kGreen,
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                        );
-                      }),
-                    ),
-                  ],
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 5, height: 5,
+                              decoration: const BoxDecoration(color: _kWhite, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text('LIVE', style: TextStyle(color: _kWhite, fontSize: 8,
+                                fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      child: Container(
-                        key: ValueKey(_currentPage),
-                        width: 68, height: 68,
+                const SizedBox(width: 18),
+
+                // Info beside the meter
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _kWhite.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: _kWhite.withOpacity(0.2), width: 1.5),
+                          color: _kAmberBg,
+                          border: Border.all(color: _kAmber.withOpacity(0.4)),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Icon(_steps[_currentPage].icon, color: _kWhite, size: 32),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 280),
-                      child: Text(_steps[_currentPage].title,
-                        key: ValueKey('title_$_currentPage'),
-                        style: const TextStyle(color: _kWhite, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2, letterSpacing: -0.3),
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('POWERED BY', style: TextStyle(color: Color(0x7FFFFFFF), fontSize: 8, letterSpacing: 2.5, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _kWhite.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kAmber.withOpacity(0.3), width: 1),
-                      ),
-                      child: Row(children: [
-                        const Text('>', style: TextStyle(color: _kAmber, fontSize: 14, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Snapp Africa', style: TextStyle(color: _kWhite.withOpacity(0.9), fontSize: 11, fontWeight: FontWeight.w700)),
-                            Text('Smart water for Africa', style: TextStyle(color: _kWhite.withOpacity(0.5), fontSize: 8.5, fontStyle: FontStyle.italic)),
-                          ],
+                        child: const Text(
+                          'SNAPP SMART METER',
+                          style: TextStyle(color: Color(0xFF774400), fontSize: 9,
+                              fontWeight: FontWeight.w900, letterSpacing: 0.8),
                         ),
-                      ]),
-                    ),
-                  ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Borehole Edition',
+                        style: TextStyle(color: _kText, fontSize: 15, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 12),
+                      ...[
+                        [Icons.wifi_rounded,        'Wireless'],
+                        [Icons.bolt_rounded,         'Low Power'],
+                        [Icons.water_drop_rounded,   'IP67 Rated'],
+                        [Icons.build_circle_rounded, 'Easy Install'],
+                      ].map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: Row(children: [
+                          Icon(item[0] as IconData, size: 14, color: _kBlue),
+                          const SizedBox(width: 7),
+                          Text(item[1] as String,
+                              style: const TextStyle(color: _kTextMid, fontSize: 12.5,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                      )),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -372,210 +487,424 @@ class _WelcomePageState extends State<WelcomePage>
     );
   }
 
-  Widget _buildRightPanel() {
-    return Column(children: [
-      Expanded(child: _buildSlideContent()),
-      const SizedBox(height: 16),
-      _buildBottomCTA(),
-    ]);
-  }
+  // ─── BENEFITS ────────────────────────────────────────────────
+  Widget _buildBenefits() {
+    final b = _benefits[_activeBenefit];
+    final accent = _benefitAccents[_activeBenefit];
+    final bgTint = _benefitBgs[_activeBenefit];
 
-  Widget _buildSlideContent() {
-    return PageView.builder(
-      controller: _pageCtrl,
-      onPageChanged: _onPageChanged,
-      itemCount: _steps.length,
-      itemBuilder: (ctx, i) => FadeTransition(
-        opacity: _fadeAnims[i],
-        child: SlideTransition(
-          position: _slideAnims[i],
-          child: _SlideCard(step: _steps[i]),
-        ),
-      ),
-    );
-  }
+    return Container(
+      color: _kBgAlt,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
+      child: Column(
+        children: [
+          _SectionPill('WHY SMART METER APP'),
+          const SizedBox(height: 14),
+          const Text(
+            'Built for people who can\'t\nafford water problems',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kText, fontSize: 22, fontWeight: FontWeight.w900,
+                letterSpacing: -0.3, height: 1.2),
+          ),
+          const SizedBox(height: 26),
 
-  Widget _buildMobileSlides() {
-    return Column(children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(_steps.length, (i) {
-          final active = i == _currentPage;
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            width: active ? 20 : 6, height: 6,
-            decoration: BoxDecoration(
-              color: active ? _kBlue : _kBorder,
-              borderRadius: BorderRadius.circular(3),
+          // Tabs
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(_benefits.length, (i) {
+                final active = i == _activeBenefit;
+                final tabAccent = _benefitAccents[i];
+                return GestureDetector(
+                  onTap: () => setState(() => _activeBenefit = i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: active ? tabAccent : _kWhite,
+                      border: Border.all(color: active ? tabAccent : _kBorder, width: active ? 2 : 1.5),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: active ? [BoxShadow(color: tabAccent.withOpacity(0.2),
+                          blurRadius: 8, offset: const Offset(0, 3))] : [],
+                    ),
+                    child: Text(
+                      _tabLabel(i),
+                      style: TextStyle(
+                        color: active ? _kWhite : _kSubtext,
+                        fontSize: 12,
+                        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ),
-          );
-        }),
-      ),
-      const SizedBox(height: 20),
-      Expanded(child: _buildSlideContent()),
-    ]);
-  }
+          ),
+          const SizedBox(height: 18),
 
-  Widget _buildBottomCTA() {
-    final isLast = _currentPage == _steps.length - 1;
-    return Column(
-      children: [
-        if (MediaQuery.of(context).size.width > 680) ...[
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween<Offset>(begin: const Offset(0.04, 0), end: Offset.zero)
+                    .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                child: child,
+              ),
+            ),
+            child: Container(
+              key: ValueKey(_activeBenefit),
+              width: double.infinity,
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: bgTint,
+                border: Border.all(color: accent.withOpacity(0.25), width: 1.5),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(b.subline.toUpperCase(),
+                    style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0)),
+                const SizedBox(height: 8),
+                Text(b.headline,
+                    style: const TextStyle(color: _kText, fontSize: 19,
+                        fontWeight: FontWeight.w900, letterSpacing: -0.2)),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.only(left: 12),
+                  decoration: BoxDecoration(border: Border(left: BorderSide(color: accent, width: 3))),
+                  child: Text(b.story,
+                      style: const TextStyle(color: _kTextMid, fontSize: 13.5, height: 1.75)),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(8)),
+                  child: Text(b.proof,
+                      style: const TextStyle(color: _kWhite, fontSize: 12, fontWeight: FontWeight.w800)),
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 18),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(_steps.length, (i) {
-              final active = i == _currentPage;
+            children: List.generate(_benefits.length, (i) {
+              final active = i == _activeBenefit;
               return GestureDetector(
-                onTap: () => _pageCtrl.animateToPage(i, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut),
+                onTap: () => setState(() => _activeBenefit = i),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 250),
                   margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: active ? 20 : 6, height: 6,
-                  decoration: BoxDecoration(color: active ? _kBlue : _kBorder, borderRadius: BorderRadius.circular(3)),
+                  width: active ? 22 : 7, height: 7,
+                  decoration: BoxDecoration(
+                    color: active ? _benefitAccents[i] : _kBorder,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
               );
             }),
           ),
-          const SizedBox(height: 16),
         ],
-        Row(children: [
-          if (_currentPage > 0) ...[
-            SizedBox(
-              height: 52, width: 52,
-              child: OutlinedButton(
-                onPressed: () => _pageCtrl.previousPage(duration: const Duration(milliseconds: 350), curve: Curves.easeInOut),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  side: const BorderSide(color: _kBorder),
-                  backgroundColor: _kWhite,
-                ),
-                child: const Icon(Icons.arrow_back_rounded, color: _kSubtext, size: 18),
-              ),
+      ),
+    );
+  }
+
+  String _tabLabel(int i) => ['Monitor', 'Control', 'Alerts', 'Save', 'Team'][i];
+
+  // ─── HOW IT WORKS ────────────────────────────────────────────
+  Widget _buildHowItWorks() {
+    return Container(
+      color: _kWhite,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
+      child: Column(children: [
+        _SectionPill('HOW IT WORKS'),
+        const SizedBox(height: 14),
+        const Text(
+          'Up and running in one afternoon',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _kText, fontSize: 22, fontWeight: FontWeight.w900,
+              letterSpacing: -0.3, height: 1.2),
+        ),
+        const SizedBox(height: 30),
+        ...List.generate(_howSteps.length, (i) {
+          final s = _howSteps[i];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: _kBg,
+              border: Border.all(color: _kBorder, width: 1.5),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(width: 10),
-          ],
-          Expanded(
-            child: SizedBox(
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _next,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kBlue,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(isLast ? 'Get Started' : 'Continue',
-                        style: const TextStyle(color: _kWhite, fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
-                    const SizedBox(width: 8),
-                    Icon(isLast ? Icons.rocket_launch_rounded : Icons.arrow_forward_rounded, color: _kAmber, size: 17),
-                  ],
-                ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(color: _kAmber, borderRadius: BorderRadius.circular(12)),
+                alignment: Alignment.center,
+                child: Text(s[0], style: const TextStyle(color: Color(0xFF3D2000),
+                    fontSize: 18, fontWeight: FontWeight.w900)),
               ),
+              const SizedBox(width: 16),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(s[1], style: const TextStyle(color: _kText, fontSize: 15, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text(s[2], style: const TextStyle(color: _kSubtext, fontSize: 13, height: 1.6)),
+              ])),
+            ]),
+          );
+        }),
+      ]),
+    );
+  }
+
+  // ─── TESTIMONIALS ────────────────────────────────────────────
+  Widget _buildTestimonials() {
+    return Container(
+      color: _kBgAlt,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
+      child: Column(children: [
+        _SectionPill('WHAT OUR USERS SAY'),
+        const SizedBox(height: 14),
+        const Text(
+          'Real people. Real results.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _kText, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.3),
+        ),
+        const SizedBox(height: 28),
+        ...List.generate(_testimonials.length, (i) {
+          final t = _testimonials[i];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: _kWhite,
+              border: Border.all(color: _kBorder, width: 1.5),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: _kBlue.withOpacity(0.05),
+                  blurRadius: 12, offset: const Offset(0, 3))],
             ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('❝', style: TextStyle(color: _kAmber, fontSize: 28, height: 1)),
+              const SizedBox(height: 6),
+              Text(t[0], style: const TextStyle(color: _kTextMid, fontSize: 14,
+                  height: 1.75, fontStyle: FontStyle.italic)),
+              const SizedBox(height: 14),
+              const Divider(color: _kBorder, thickness: 1),
+              const SizedBox(height: 10),
+              Row(children: [
+                CircleAvatar(radius: 20, backgroundColor: _kBlue,
+                    child: Text(t[1][0], style: const TextStyle(color: _kWhite,
+                        fontWeight: FontWeight.w900, fontSize: 15))),
+                const SizedBox(width: 12),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(t[1], style: const TextStyle(color: _kText, fontSize: 13, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(t[2], style: const TextStyle(color: _kSubtext, fontSize: 11.5)),
+                ]),
+              ]),
+            ]),
+          );
+        }),
+      ]),
+    );
+  }
+
+  // ─── FINAL CTA ───────────────────────────────────────────────
+  Widget _buildCTA() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF1A4FD6), Color(0xFF0E3BAA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 52),
+      child: Column(children: [
+        const Text(
+          'Your borehole deserves\nbetter than guesswork',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _kWhite, fontSize: 25, fontWeight: FontWeight.w900,
+              letterSpacing: -0.4, height: 1.2),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Join property managers across Kenya who have taken\ncontrol of their water supply. Free to get started.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _kWhite.withOpacity(0.82), fontSize: 14, height: 1.65),
+        ),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _goToLogin,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kAmber,
+              foregroundColor: const Color(0xFF3D2000),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
+            ),
+            child: const Text('Create Free Account',
+                style: TextStyle(color: Color(0xFF3D2000), fontSize: 16, fontWeight: FontWeight.w900)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _goToLogin,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFAAC0FF), width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Sign In to Existing Account',
+                style: TextStyle(color: _kWhite, fontSize: 15, fontWeight: FontWeight.w700)),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ─── FOOTER ──────────────────────────────────────────────────
+  Widget _buildFooter() {
+    return Container(
+      color: const Color(0xFFEDF1FA),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
+      child: SafeArea(
+        top: false,
+        child: Column(children: [
+          SizedBox(
+            width: 130, height: 42,
+            child: Image.asset(
+              'assets/Logo.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (_, __, ___) => const _TextLogoLight(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            '© 2025 Smart Meter App · Powered by Snapp Africa · Nairobi, Kenya',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _kSubtext, fontSize: 11),
           ),
         ]),
-        const SizedBox(height: 10),
-        Center(
-          child: GestureDetector(
-            onTap: _skip,
-            child: RichText(
-              text: const TextSpan(
-                text: 'Already have an account?  ',
-                style: TextStyle(color: _kSubtext, fontSize: 12),
-                children: [
-                  TextSpan(text: 'Sign in', style: TextStyle(color: _kBlue, fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-// ─── Models & Widgets ─────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+// HELPER WIDGETS
+// ════════════════════════════════════════════════════════════════
 
-class _OnboardStep {
-  final IconData icon;
-  final Color    iconColor, iconBg;
-  final String   title, description, stat, statLabel, stat2, statLabel2;
-  const _OnboardStep({
-    required this.icon, required this.iconColor, required this.iconBg,
-    required this.title, required this.description,
-    required this.stat, required this.statLabel,
-    required this.stat2, required this.statLabel2,
-  });
+class _SectionPill extends StatelessWidget {
+  final String text;
+  const _SectionPill(this.text);
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+    decoration: BoxDecoration(
+      color: _kBlueSoft,
+      border: Border.all(color: const Color(0xFF99B8FF)),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Text(text, style: const TextStyle(color: _kBlue, fontSize: 10,
+        fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+  );
 }
 
-class _SlideCard extends StatelessWidget {
-  final _OnboardStep step;
-  const _SlideCard({required this.step});
+class _TextLogoLight extends StatelessWidget {
+  const _TextLogoLight();
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      const Text('>', style: TextStyle(color: _kAmber, fontSize: 28,
+          fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
+      const SizedBox(width: 5),
+      Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('SNAPP', style: TextStyle(color: _kText, fontSize: 14,
+            fontWeight: FontWeight.w900, letterSpacing: 2, height: 1)),
+        const Text('AFRICA', style: TextStyle(color: Color(0xFF774400), fontSize: 8,
+            fontWeight: FontWeight.w700, letterSpacing: 3, height: 1.4)),
+      ]),
+    ]);
+  }
+}
 
+class _TextLogo extends StatelessWidget {
+  const _TextLogo();
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      const Text('>', style: TextStyle(color: _kAmber, fontSize: 28,
+          fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
+      const SizedBox(width: 5),
+      Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('SNAPP', style: TextStyle(color: _kWhite, fontSize: 14,
+            fontWeight: FontWeight.w900, letterSpacing: 2, height: 1)),
+        const Text('AFRICA', style: TextStyle(color: _kAmber, fontSize: 8,
+            fontWeight: FontWeight.w700, letterSpacing: 3, height: 1.4)),
+      ]),
+    ]);
+  }
+}
+
+class _MeterPlaceholder extends StatelessWidget {
+  const _MeterPlaceholder();
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        color: _kWhite,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _kBorder),
-        boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.07), blurRadius: 30, offset: const Offset(0, 8))],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(color: step.iconBg, borderRadius: BorderRadius.circular(16)),
-              child: Icon(step.icon, color: step.iconColor, size: 28),
-            ),
-            const SizedBox(height: 20),
-            Text(step.title, style: const TextStyle(color: _kText, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2, letterSpacing: -0.3)),
-            const SizedBox(height: 10),
-            Text(step.description, style: const TextStyle(color: _kSubtext, fontSize: 13.5, height: 1.65)),
-            const Spacer(),
-            Row(children: [
-              Expanded(child: _StatPill(value: step.stat, label: step.statLabel, accent: step.iconColor)),
-              const SizedBox(width: 10),
-              Expanded(child: _StatPill(value: step.stat2, label: step.statLabel2, accent: step.iconColor)),
-            ]),
-          ],
-        ),
-      ),
+      color: _kBlueSoft,
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.sensors_rounded, size: 38, color: _kBlue),
+        const SizedBox(height: 8),
+        const Text('Smart Meter', style: TextStyle(color: _kText, fontSize: 12, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const Text('Add meter.png\nto assets/', textAlign: TextAlign.center,
+            style: TextStyle(color: _kSubtext, fontSize: 10, height: 1.4)),
+      ]),
     );
   }
 }
 
-class _StatPill extends StatelessWidget {
+class _Stat extends StatelessWidget {
   final String value, label;
-  final Color  accent;
-  const _StatPill({required this.value, required this.label, required this.accent});
-
+  const _Stat(this.value, this.label);
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: accent.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withOpacity(0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: TextStyle(color: accent, fontSize: 18, fontWeight: FontWeight.w900, height: 1, letterSpacing: -0.3)),
-          const SizedBox(height: 3),
-          Text(label, style: const TextStyle(color: _kSubtext, fontSize: 10.5, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(value, style: const TextStyle(color: _kBlue, fontSize: 17,
+          fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(color: _kSubtext, fontSize: 9.5,
+          fontWeight: FontWeight.w500)),
+    ],
+  );
+}
+
+class _StatDiv extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(width: 1, height: 28, color: _kBorder);
+}
+
+class _Trust extends StatelessWidget {
+  final String label;
+  const _Trust(this.label);
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(width: 7, height: 7,
+          decoration: const BoxDecoration(color: _kGreen, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Text(label, style: const TextStyle(color: _kSubtext, fontSize: 12, fontWeight: FontWeight.w600)),
+    ],
+  );
 }
