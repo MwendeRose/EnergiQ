@@ -22,7 +22,7 @@ class AboutSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(50),
                 ),
                 child: const Text(
-                  'About energyIQ',
+                  'About Smart-meters app',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -42,7 +42,7 @@ class AboutSection extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'energyIQ is a cutting-edge energy management platform designed to help households and businesses monitor, analyze, and optimize their energy consumption in real-time.',
+                'Smart-meters app is a cutting-edge energy management platform designed to help households and businesses monitor, analyze, and optimize their energy consumption in real-time.',
                 style: TextStyle(
                   fontSize: 18,
                   color: Color(0xFF4B5563),
