@@ -8,7 +8,7 @@ class Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black,
+      color: const Color(0xFFF1F5F9), // light grey background
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
       child: Center(
         child: ConstrainedBox(
@@ -18,48 +18,21 @@ class Footer extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF97316), Color(0xFFEA580C)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'E',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF111827), // dark text on light bg
                       ),
-                      const SizedBox(width: 8),
-                      RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          children: [
-                            TextSpan(text: 'energy'),
-                            TextSpan(
-                              text: 'IQ',
-                              style: TextStyle(color: Color(0xFFF97316)),
-                            ),
-                          ],
+                      children: [
+                        TextSpan(text: 'Smart Meters'),
+                        TextSpan(
+                          text: 'App',
+                          style: TextStyle(color: Color(0xFF2563EB)), // blue accent
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Row(
                     children: [
@@ -68,7 +41,7 @@ class Footer extends StatelessWidget {
                         child: const Text(
                           'Privacy Policy',
                           style: TextStyle(
-                            color: Color(0xFF9CA3AF),
+                            color: Color(0xFF6B7280),
                             fontSize: 14,
                           ),
                         ),
@@ -79,16 +52,16 @@ class Footer extends StatelessWidget {
                         child: const Text(
                           'Terms of Service',
                           style: TextStyle(
-                            color: Color(0xFF9CA3AF),
+                            color: Color(0xFF6B7280),
                             fontSize: 14,
                           ),
                         ),
                       ),
                       const SizedBox(width: 32),
                       const Text(
-                        '© 2026 energyIQ',
+                        '© 2026 Smart meters App',
                         style: TextStyle(
-                          color: Color(0xFF9CA3AF),
+                          color: Color(0xFF6B7280),
                           fontSize: 14,
                         ),
                       ),

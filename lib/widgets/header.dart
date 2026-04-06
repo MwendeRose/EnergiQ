@@ -1,7 +1,7 @@
 // ignore_for_file: use_super_parameters, unnecessary_underscores
 
 import 'package:flutter/material.dart';
-import 'package:smart_app/screens/login_page.dart'; // adjust import path as needed
+import 'package:smart_app/screens/login_page.dart';
 
 class Header extends StatelessWidget {
   final VoidCallback onAboutPressed;
@@ -46,42 +46,24 @@ class Header extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-        
-          Row(
-            children: [
-              // Larger container: 88×88, no padding, full bleed image
-              SizedBox(
-                width: 88,
-                height: 88,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.asset(
-                    'assets/logosnapp.jpeg',
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (_, __, ___) => const _FallbackLogo(),
-                  ),
-                ),
+
+          // ── Brand name only ──────────────────────────────
+          RichText(
+            text: const TextSpan(
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF111827),
+                letterSpacing: -0.3,
               ),
-              const SizedBox(width: 12),
-              RichText(
-                text: const TextSpan(
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF111827),
-                    letterSpacing: -0.3,
-                  ),
-                  children: [
-                    TextSpan(text: 'Smart-Meters'),
-                    TextSpan(
-                      text: 'App',
-                      style: TextStyle(color: Color(0xFF2563EB)),
-                    ),
-                  ],
+              children: [
+                TextSpan(text: 'Smart-Meters'),
+                TextSpan(
+                  text: 'App',
+                  style: TextStyle(color: Color(0xFF2563EB)),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           // ── Nav links (wide screens only) ────────────────
@@ -94,8 +76,6 @@ class Header extends StatelessWidget {
                 const SizedBox(width: 28),
                 _NavLink(label: 'Contact', onPressed: onContactPressed),
                 const SizedBox(width: 28),
-
-                // Sign In button → navigates to LoginPage
                 ElevatedButton(
                   onPressed: () => _goToLogin(context),
                   style: ElevatedButton.styleFrom(
@@ -163,62 +143,6 @@ class _NavLink extends StatelessWidget {
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
-      ),
-    );
-  }
-}
-
-// ── Logo fallback (Snapp Africa style) ───────────────────────
-class _FallbackLogo extends StatelessWidget {
-  const _FallbackLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF0D0D0D),
-      alignment: Alignment.center,
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            '>',
-            style: TextStyle(
-              color: Color(0xFFFFAA00),
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              fontStyle: FontStyle.italic,
-              height: 1,
-            ),
-          ),
-          SizedBox(width: 3),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SNAPP',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 8,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  height: 1,
-                ),
-              ),
-              Text(
-                'AFRICA',
-                style: TextStyle(
-                  color: Color(0xFFFFAA00),
-                  fontSize: 5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 2,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
